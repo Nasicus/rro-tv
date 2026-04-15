@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">RRO</string>
-    <string name="play">Play</string>
+    <string name="play">Abspielen</string>
     <string name="pause">Pause</string>
-    <string name="select_channel">Pick a channel</string>
-    <string name="now_playing">Now playing</string>
-    <string name="idle">Ready</string>
+    <string name="select_channel">Sender wählen</string>
+    <string name="now_playing">Es spielt</string>
+    <string name="idle">Bereit</string>
     <string name="ch_rro">RRO</string>
     <string name="ch_swissmelody">Swiss Melody</string>
     <string name="ch_muesigpur">Müsig Pur</string>

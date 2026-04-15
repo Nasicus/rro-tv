@@ -86,7 +86,8 @@ private fun NowPlayingHeader(state: PlayerUiState) {
     val ctx = LocalContext.current
     val channel = channelById(state.currentChannelId)
     val channelName = channel?.let { ctx.getString(it.nameRes) } ?: stringResource(R.string.idle)
-    val song = state.title.takeIf { it.isNotBlank() && it != channelName } ?: ""
+    val song = state.title.takeIf { it.isNotBlank() && it != channelName }.orEmpty()
+    val artist = state.artist.takeIf { it.isNotBlank() && it != channelName }.orEmpty()
 
     Column {
         Text(
@@ -102,17 +103,22 @@ private fun NowPlayingHeader(state: PlayerUiState) {
             fontSize = 56.sp,
             fontWeight = FontWeight.Black,
         )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = when {
-                state.isBuffering -> "…"
-                song.isNotBlank() -> song
-                state.isPlaying -> stringResource(R.string.now_playing)
-                else -> ""
-            },
-            color = OnSurfaceMuted,
-            fontSize = 22.sp,
-        )
+        Spacer(Modifier.height(8.dp))
+        when {
+            state.isBuffering -> {
+                Text("…", color = OnSurfaceMuted, fontSize = 22.sp)
+            }
+            song.isNotBlank() -> {
+                Text(song, color = OnSurface, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                if (artist.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(artist, color = OnSurfaceMuted, fontSize = 20.sp)
+                }
+            }
+            state.isPlaying -> {
+                Text(stringResource(R.string.now_playing), color = OnSurfaceMuted, fontSize = 22.sp)
+            }
+        }
     }
 }
 

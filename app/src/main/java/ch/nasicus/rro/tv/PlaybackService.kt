@@ -1,6 +1,12 @@
 package ch.nasicus.rro.tv
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Log
 import androidx.media3.common.AudioAttributes
@@ -11,8 +17,13 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
+import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,14 +35,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Owns the ExoPlayer + MediaSession. Lives independently of the activity so
- * audio keeps playing once Google TV's ambient screensaver kicks in. The
- * active MediaSession is what the system "now playing" overlay reads, so
- * NowPlayingPoller's metadata updates surface there for free.
+ * Owns the ExoPlayer + MediaLibrarySession. Extends MediaLibraryService (not
+ * plain MediaSessionService) because Google TV's Backdrop ambient does a
+ * MediaBrowser probe at discovery time — services that return nothing get
+ * filtered out of the "now playing" overlay. We expose the 3 channels as a
+ * minimal browse tree purely so Backdrop recognizes us as an eligible media
+ * app.
  */
-class PlaybackService : MediaSessionService() {
+class PlaybackService : MediaLibraryService() {
 
-    private var session: MediaSession? = null
+    private var session: MediaLibrarySession? = null
     private var nowPlayingPoller: NowPlayingPoller? = null
 
     override fun onCreate() {
@@ -56,10 +69,21 @@ class PlaybackService : MediaSessionService() {
             .build()
 
         nowPlayingPoller = NowPlayingPoller(player, applicationContext, PlaylistApi())
-        session = MediaSession.Builder(this, player).build()
+
+        val activityIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, activityIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+        session = MediaLibrarySession.Builder(this, player, LibraryCallback(applicationContext))
+            .setSessionActivity(pendingIntent)
+            .build()
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onTaskRemoved(rootIntent: android.content.Intent?) {
         val p = session?.player
@@ -77,6 +101,62 @@ class PlaybackService : MediaSessionService() {
             session = null
         }
         super.onDestroy()
+    }
+}
+
+private const val ROOT_ID = "root"
+
+/**
+ * Exposes the 3 channels as a flat browse tree for any MediaBrowser client
+ * (Backdrop, Google Assistant, Android Auto). Returning a non-empty tree is
+ * the signal Backdrop uses to decide whether to render the screensaver
+ * overlay for this app.
+ */
+private class LibraryCallback(private val ctx: Context) : MediaLibrarySession.Callback {
+
+    override fun onGetLibraryRoot(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        params: MediaLibraryService.LibraryParams?,
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+        val rootMetadata = MediaMetadata.Builder()
+            .setTitle(ctx.getString(R.string.app_name))
+            .setIsBrowsable(true)
+            .setIsPlayable(false)
+            .build()
+        val root = MediaItem.Builder()
+            .setMediaId(ROOT_ID)
+            .setMediaMetadata(rootMetadata)
+            .build()
+        return Futures.immediateFuture(LibraryResult.ofItem(root, params))
+    }
+
+    override fun onGetChildren(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        parentId: String,
+        page: Int,
+        pageSize: Int,
+        params: MediaLibraryService.LibraryParams?,
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        if (parentId != ROOT_ID) {
+            return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params))
+        }
+        val items = CHANNELS.map { channel ->
+            MediaItem.Builder().withChannel(channel, ctx).build()
+        }
+        return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
+    }
+
+    override fun onGetItem(
+        session: MediaLibrarySession,
+        browser: MediaSession.ControllerInfo,
+        mediaId: String,
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+        val channel = channelById(mediaId)
+            ?: return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE))
+        val item = MediaItem.Builder().withChannel(channel, ctx).build()
+        return Futures.immediateFuture(LibraryResult.ofItem(item, null))
     }
 }
 
@@ -195,6 +275,13 @@ private class NowPlayingPoller(
 /**
  * Builds the MediaItem for a channel. The title/artist start as the channel
  * name and get rewritten by NowPlayingPoller as soon as the API responds.
+ *
+ * Artwork: Google TV's Backdrop ambient (and its tabletop "Now Playing"
+ * card) only renders for MediaSessions that publish a bitmap — text-only
+ * sessions get filtered out. We synthesize a channel-name badge per
+ * channel on first use. 256px PNG keeps the IPC payload small enough
+ * to survive the binder when MediaController forwards the MediaItem to
+ * the service.
  */
 fun MediaItem.Builder.withChannel(channel: Channel, ctx: Context): MediaItem.Builder {
     val name = ctx.getString(channel.nameRes)
@@ -202,6 +289,7 @@ fun MediaItem.Builder.withChannel(channel: Channel, ctx: Context): MediaItem.Bui
         .setTitle(name)
         .setArtist(name)
         .setAlbumTitle(ctx.getString(R.string.app_name))
+        .setArtworkData(channelArtwork(name), MediaMetadata.PICTURE_TYPE_FRONT_COVER)
         .setIsBrowsable(false)
         .setIsPlayable(true)
         .setExtras(Bundle().apply { putString(EXTRA_CHANNEL_ID, channel.id) })
@@ -209,4 +297,40 @@ fun MediaItem.Builder.withChannel(channel: Channel, ctx: Context): MediaItem.Bui
     return setMediaId(channel.id)
         .setUri(channel.streamUrl)
         .setMediaMetadata(md)
+}
+
+private const val ARTWORK_SIZE = 256
+private const val RRO_RED = 0xFFE3000B.toInt()
+private val artworkCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+
+private fun channelArtwork(channelName: String): ByteArray =
+    artworkCache.getOrPut(channelName) { generateArtworkPng(channelName) }
+
+private fun generateArtworkPng(channelName: String): ByteArray {
+    val bmp = Bitmap.createBitmap(ARTWORK_SIZE, ARTWORK_SIZE, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+    canvas.drawColor(RRO_RED)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFFFFF.toInt()
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    val lines = if (' ' in channelName) channelName.split(' ') else listOf(channelName)
+    val maxWidth = ARTWORK_SIZE * 0.85f
+    var size = 120f
+    while (size > 20f && lines.maxOf { paint.apply { textSize = size }.measureText(it) } > maxWidth) {
+        size -= 4f
+    }
+    paint.textSize = size
+    val fm = paint.fontMetrics
+    val lineHeight = fm.descent - fm.ascent
+    var y = ARTWORK_SIZE / 2f - (lineHeight * lines.size) / 2f - fm.ascent
+    for (line in lines) {
+        canvas.drawText(line, ARTWORK_SIZE / 2f, y, paint)
+        y += lineHeight
+    }
+    val out = java.io.ByteArrayOutputStream()
+    bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+    bmp.recycle()
+    return out.toByteArray()
 }

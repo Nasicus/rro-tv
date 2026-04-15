@@ -1,0 +1,22 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Captures
+captures/
+
+# Keystores (never commit)
+*.jks
+*.keystore
+release.keystore

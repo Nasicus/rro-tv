@@ -1,0 +1,99 @@
+package ch.nasicus.rro.tv
+
+import android.content.ComponentName
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+
+class MainActivity : ComponentActivity() {
+
+    private var controller: MediaController? = null
+    private val state = MutableStateFlow(PlayerUiState())
+
+    private val playerListener = object : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) = refreshState()
+        override fun onMediaMetadataChanged(metadata: MediaMetadata) = refreshState()
+        override fun onIsPlayingChanged(isPlaying: Boolean) = refreshState()
+        override fun onPlaybackStateChanged(playbackState: Int) = refreshState()
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            val ui by state.asStateFlow().collectAsState()
+            PlayerScreen(
+                state = ui,
+                onSelect = ::play,
+                onTogglePlayPause = ::togglePlayPause,
+            )
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val token = SessionToken(this, ComponentName(this, PlaybackService::class.java))
+        val future = MediaController.Builder(this, token).buildAsync()
+        future.addListener({
+            controller = future.get().also {
+                it.addListener(playerListener)
+                refreshState()
+            }
+        }, MoreExecutors.directExecutor())
+    }
+
+    override fun onStop() {
+        super.onStop()
+        controller?.removeListener(playerListener)
+        controller?.release()
+        controller = null
+    }
+
+    private fun play(channel: Channel) {
+        val c = controller ?: return
+        val current = c.currentMediaItem?.mediaId
+        if (current != channel.id) {
+            c.setMediaItem(MediaItem.Builder().withChannel(channel, this).build())
+            c.prepare()
+        }
+        c.play()
+    }
+
+    private fun togglePlayPause() {
+        val c = controller ?: return
+        if (c.isPlaying) c.pause() else if (c.mediaItemCount > 0) c.play()
+    }
+
+    private fun refreshState() {
+        val c = controller ?: return
+        val id = c.currentMediaItem?.mediaId
+        val md = c.mediaMetadata
+        state.update {
+            PlayerUiState(
+                currentChannelId = id,
+                isPlaying = c.isPlaying,
+                isBuffering = c.playbackState == Player.STATE_BUFFERING,
+                title = md.title?.toString().orEmpty(),
+                artist = md.artist?.toString().orEmpty(),
+            )
+        }
+    }
+}
+
+data class PlayerUiState(
+    val currentChannelId: String? = null,
+    val isPlaying: Boolean = false,
+    val isBuffering: Boolean = false,
+    val title: String = "",
+    val artist: String = "",
+)

@@ -2,16 +2,17 @@ package ch.nasicus.rro.tv
 
 import android.content.ComponentName
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
-import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -44,12 +45,32 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         val token = SessionToken(this, ComponentName(this, PlaybackService::class.java))
         val future = MediaController.Builder(this, token).buildAsync()
+        // Main executor: MediaController methods must be called on the looper
+        // it was built with (the activity's main thread here). With a direct
+        // executor the completion callback runs on the binder thread and
+        // setMediaItem silently no-ops.
         future.addListener({
-            controller = future.get().also {
-                it.addListener(playerListener)
-                refreshState()
+            val c = runCatching { future.get() }.getOrNull() ?: run {
+                Log.w(TAG, "MediaController build failed")
+                return@addListener
             }
-        }, MoreExecutors.directExecutor())
+            controller = c
+            c.addListener(playerListener)
+            refreshState()
+            // Opening the app should equal "radio on". If something is
+            // already playing (e.g. user backgrounded us mid-song and came
+            // back) we leave it alone. Otherwise resume the currently-loaded
+            // channel, or fall back to RRO on a cold start.
+            if (!c.isPlaying) {
+                if (c.mediaItemCount == 0) {
+                    Log.d(TAG, "auto-starting ${CHANNELS.first().id}")
+                    play(CHANNELS.first())
+                } else {
+                    Log.d(TAG, "auto-resuming ${c.currentMediaItem?.mediaId}")
+                    c.play()
+                }
+            }
+        }, ContextCompat.getMainExecutor(this))
     }
 
     override fun onStop() {
@@ -97,3 +118,5 @@ data class PlayerUiState(
     val title: String = "",
     val artist: String = "",
 )
+
+private const val TAG = "RroActivity"

@@ -1,5 +1,6 @@
 package ch.nasicus.rro.tv
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +31,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -86,22 +89,23 @@ fun PlayerScreen(
 private fun NowPlayingHeader(state: PlayerUiState) {
     val ctx = LocalContext.current
     val channel = channelById(state.currentChannelId)
-    val channelName = channel?.let { ctx.getString(it.nameRes) } ?: stringResource(R.string.idle)
-    val song = state.title.takeIf { it.isNotBlank() && it != channelName }.orEmpty()
-    val artist = state.artist.takeIf { it.isNotBlank() && it != channelName }.orEmpty()
+    val shortName = channel?.let { ctx.getString(it.nameRes) } ?: stringResource(R.string.idle)
+    val headerName = channel?.longNameRes?.let { ctx.getString(it) } ?: shortName
+    val song = state.title.takeIf { it.isNotBlank() && it != shortName && it != headerName }.orEmpty()
+    val artist = state.artist.takeIf { it.isNotBlank() && it != shortName && it != headerName }.orEmpty()
 
     Column {
-        Text(
-            text = stringResource(R.string.app_name),
-            color = Red,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
+        Image(
+            painter = painterResource(R.drawable.rro_wordmark),
+            contentDescription = stringResource(R.string.app_name),
+            colorFilter = ColorFilter.tint(Red),
+            modifier = Modifier.height(32.dp),
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
-            text = channelName,
+            text = headerName,
             color = OnSurface,
-            fontSize = 56.sp,
+            fontSize = if (headerName.length > 15) 44.sp else 56.sp,
             fontWeight = FontWeight.Black,
         )
         Spacer(Modifier.height(8.dp))

@@ -5,6 +5,9 @@ import androidx.annotation.StringRes
 data class Channel(
     val id: String,
     @StringRes val nameRes: Int,
+    /** Full station name, shown as a subtitle above the big channel name
+     *  in the header. Null when the short name is already the full name. */
+    @StringRes val longNameRes: Int? = null,
     val streamUrl: String,
     /**
      * UUID used by RRO's public GraphQL playlist API
@@ -19,6 +22,7 @@ val CHANNELS = listOf(
     Channel(
         id = "rro",
         nameRes = R.string.ch_rro,
+        longNameRes = R.string.ch_rro_long,
         streamUrl = "https://streaming.rro.ch/rro/mp3_128",
         playlistApiId = "019970c7-1127-7288-a49c-a25accbfc2ee",
     ),

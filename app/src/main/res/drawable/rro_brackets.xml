@@ -1,0 +1,46 @@
+<!--
+  The three "sound wave" brackets from RRO's "rro.)))" wordmark, extracted
+  as a stand-alone vector for the launcher icon. White-on-dark; pair with
+  the red ic_launcher_background.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="30dp"
+    android:viewportWidth="48"
+    android:viewportHeight="30">
+
+    <group
+        android:translateX="-94"
+        android:translateY="0">
+
+        <group
+            android:translateX="-163.001"
+            android:translateY="-103.88">
+            <path
+                android:fillColor="#FFFFFF"
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="2"
+                android:pathData="M259.137,131.7v-.108a25.649,25.649,0,0,0,3.261-6.522,23.089,23.089,0,0,0,0-14.558,25.649,25.649,0,0,0-3.261-6.522v-.108h3.3a22.955,22.955,0,0,1,3.126,6.589,26.254,26.254,0,0,1,0,14.64,22.948,22.948,0,0,1-3.126,6.589Z" />
+        </group>
+
+        <group
+            android:translateX="-177.715"
+            android:translateY="-103.88">
+            <path
+                android:fillColor="#FFFFFF"
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="2"
+                android:pathData="M291.358,131.7v-.108a25.683,25.683,0,0,0,3.261-6.522,23.1,23.1,0,0,0,0-14.558,25.683,25.683,0,0,0-3.261-6.522v-.108h3.3a22.953,22.953,0,0,1,3.125,6.589,26.24,26.24,0,0,1,0,14.64,22.946,22.946,0,0,1-3.125,6.589Z" />
+        </group>
+
+        <group
+            android:translateX="-192.428"
+            android:translateY="-103.88">
+            <path
+                android:fillColor="#FFFFFF"
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="2"
+                android:pathData="M323.578,131.7v-.108a25.666,25.666,0,0,0,3.261-6.522,23.089,23.089,0,0,0,0-14.558,25.666,25.666,0,0,0-3.261-6.522v-.108h3.3A22.923,22.923,0,0,1,330,110.469a26.227,26.227,0,0,1,0,14.64,22.916,22.916,0,0,1-3.125,6.589Z" />
+        </group>
+    </group>
+</vector>

@@ -6,12 +6,8 @@
         </shape>
     </item>
     <item
-        android:gravity="center"
         android:width="220dp"
-        android:height="80dp">
-        <shape android:shape="rectangle">
-            <solid android:color="@android:color/white" />
-            <corners android:radius="8dp" />
-        </shape>
-    </item>
+        android:height="46dp"
+        android:drawable="@drawable/rro_wordmark"
+        android:gravity="center" />
 </layer-list>

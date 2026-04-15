@@ -7,6 +7,7 @@
     <string name="now_playing">Now playing</string>
     <string name="idle">Ready</string>
     <string name="ch_rro">RRO</string>
+    <string name="ch_rro_long">Radio Rottu Oberwallis</string>
     <string name="ch_swissmelody">Swiss Melody</string>
     <string name="ch_muesigpur">Müsig Pur</string>
 </resources>

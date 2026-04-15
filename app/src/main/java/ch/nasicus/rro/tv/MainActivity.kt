@@ -33,11 +33,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val ui by state.asStateFlow().collectAsState()
-            PlayerScreen(
-                state = ui,
-                onSelect = ::play,
-                onTogglePlayPause = ::togglePlayPause,
-            )
+            PlayerScreen(state = ui, onToggle = ::toggle)
         }
     }
 
@@ -90,9 +86,17 @@ class MainActivity : ComponentActivity() {
         c.play()
     }
 
-    private fun togglePlayPause() {
+    /**
+     * Single-button UX: clicking the currently playing channel pauses it;
+     * clicking anything else switches to that channel and plays.
+     */
+    private fun toggle(channel: Channel) {
         val c = controller ?: return
-        if (c.isPlaying) c.pause() else if (c.mediaItemCount > 0) c.play()
+        if (c.isPlaying && c.currentMediaItem?.mediaId == channel.id) {
+            c.pause()
+        } else {
+            play(channel)
+        }
     }
 
     private fun refreshState() {

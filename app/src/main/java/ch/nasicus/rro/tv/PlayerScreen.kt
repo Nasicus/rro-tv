@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -47,8 +46,7 @@ private val OnSurfaceMuted = Color(0xFFA0A0A0)
 @Composable
 fun PlayerScreen(
     state: PlayerUiState,
-    onSelect: (Channel) -> Unit,
-    onTogglePlayPause: () -> Unit,
+    onToggle: (Channel) -> Unit,
 ) {
     val colors = darkColorScheme(
         primary = Red,
@@ -60,8 +58,12 @@ fun PlayerScreen(
         onSurface = OnSurface,
     )
     MaterialTheme(colorScheme = colors) {
-        val firstChannelFocus = remember { FocusRequester() }
-        LaunchedEffect(Unit) { runCatching { firstChannelFocus.requestFocus() } }
+        // Autofocus the currently playing / selected channel, falling back to
+        // the first card on a cold start.
+        val currentIndex = CHANNELS.indexOfFirst { it.id == state.currentChannelId }
+            .coerceAtLeast(0)
+        val focusRequester = remember { FocusRequester() }
+        LaunchedEffect(currentIndex) { runCatching { focusRequester.requestFocus() } }
 
         Box(
             modifier = Modifier
@@ -71,11 +73,10 @@ fun PlayerScreen(
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(48.dp),
             ) {
                 NowPlayingHeader(state)
-                ChannelRow(state, onSelect, firstChannelFocus)
-                TransportRow(state, onTogglePlayPause)
+                ChannelRow(state, onToggle, focusRequester, currentIndex)
             }
         }
     }
@@ -125,8 +126,9 @@ private fun NowPlayingHeader(state: PlayerUiState) {
 @Composable
 private fun ChannelRow(
     state: PlayerUiState,
-    onSelect: (Channel) -> Unit,
-    firstFocus: FocusRequester,
+    onToggle: (Channel) -> Unit,
+    focusRequester: FocusRequester,
+    focusedIndex: Int,
 ) {
     Column {
         Text(
@@ -137,12 +139,14 @@ private fun ChannelRow(
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             CHANNELS.forEachIndexed { i, ch ->
+                val isCurrent = ch.id == state.currentChannelId
                 ChannelCard(
                     channel = ch,
-                    selected = ch.id == state.currentChannelId,
-                    isPlaying = state.isPlaying && ch.id == state.currentChannelId,
-                    onClick = { onSelect(ch) },
-                    modifier = if (i == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                    isCurrent = isCurrent,
+                    isPlaying = isCurrent && state.isPlaying,
+                    isBuffering = isCurrent && state.isBuffering,
+                    onClick = { onToggle(ch) },
+                    modifier = if (i == focusedIndex) Modifier.focusRequester(focusRequester) else Modifier,
                 )
             }
         }
@@ -152,20 +156,21 @@ private fun ChannelRow(
 @Composable
 private fun ChannelCard(
     channel: Channel,
-    selected: Boolean,
+    isCurrent: Boolean,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val border = when {
         isPlaying -> Red
-        selected -> RedDark
+        isCurrent -> RedDark
         else -> Color.Transparent
     }
     Button(
         onClick = onClick,
         modifier = modifier
-            .size(width = 220.dp, height = 130.dp)
+            .size(width = 220.dp, height = 150.dp)
             .clip(RoundedCornerShape(16.dp))
             .border(3.dp, border, RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
@@ -174,44 +179,28 @@ private fun ChannelCard(
             contentColor = OnSurface,
         ),
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
             Text(
                 text = stringResource(channel.nameRes),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold,
             )
-            if (isPlaying) {
-                Spacer(Modifier.height(6.dp))
-                Text("●", color = Red, fontSize = 14.sp)
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = when {
+                    isPlaying -> Red
+                    isCurrent -> OnSurface
+                    else -> OnSurfaceMuted
+                },
+                modifier = Modifier.size(28.dp),
+            )
+            if (isBuffering) {
+                Text("…", color = OnSurfaceMuted, fontSize = 14.sp)
             }
         }
-    }
-}
-
-@Composable
-private fun TransportRow(state: PlayerUiState, onTogglePlayPause: () -> Unit) {
-    val enabled = state.currentChannelId != null
-    Button(
-        onClick = onTogglePlayPause,
-        enabled = enabled,
-        shape = RoundedCornerShape(28.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Red,
-            contentColor = OnSurface,
-            disabledContainerColor = Surface,
-            disabledContentColor = OnSurfaceMuted,
-        ),
-        modifier = Modifier.height(56.dp),
-    ) {
-        Icon(
-            if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-            contentDescription = null,
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            if (state.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }

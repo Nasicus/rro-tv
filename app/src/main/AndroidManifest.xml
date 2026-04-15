@@ -29,7 +29,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask"
             android:screenOrientation="landscape"
             android:theme="@style/Theme.RroTv">
             <intent-filter>

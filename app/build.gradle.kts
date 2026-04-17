@@ -89,6 +89,21 @@ android {
     }
 }
 
+/**
+ * Debug builds masquerade as com.google.android.youtube.tvmusic so the
+ * Chromecast with Google TV ambient now-playing card shows up — that card
+ * is gated by a hardcoded SHA-256 package-name allowlist inside launcherx.
+ * tvmusic is one of only two Google-owned packages in the list and isn't
+ * preinstalled on Chromecast with Google TV, so hijacking it conflicts
+ * with nothing. Release builds keep the real applicationId; this only
+ * affects local sideloading.
+ */
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        variant.applicationId.set("com.google.android.youtube.tvmusic")
+    }
+}
+
 dependencies {
     val media3 = "1.5.0"
     implementation("androidx.core:core-ktx:1.15.0")
@@ -104,8 +119,5 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.media3:media3-exoplayer:$media3")
-    // Legacy androidx.media compat stack. Chromecast with Google TV's ambient
-    // now-playing card reliably picks up MediaSessionCompat sessions but often
-    // misses Media3's MediaLibrarySession via its compat bridge.
     implementation("androidx.media:media:1.7.0")
 }

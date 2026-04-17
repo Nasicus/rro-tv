@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only override. The launcher icon background and TV banner both pull
+  from @color/rro_red; swapping it to green lets the sideloaded debug build
+  be told apart from the real (red) release at a glance on the home screen.
+  In-app UI colors are hardcoded hex and stay RRO-red.
+-->
+<resources>
+    <color name="rro_red">#00AA33</color>
+</resources>

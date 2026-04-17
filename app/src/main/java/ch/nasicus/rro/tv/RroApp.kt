@@ -6,12 +6,10 @@ import android.app.NotificationManager
 import androidx.core.content.getSystemService
 
 /**
- * Pre-creates the media playback notification channel at IMPORTANCE_DEFAULT
- * before Media3's MediaSessionService lazily creates it at IMPORTANCE_LOW.
- * The channel ID must match Media3's DefaultMediaNotificationProvider
- * constant "default_channel_id" — once a channel exists Android locks its
- * importance, so pre-creating here wins. Higher importance appears to be
- * one requirement for Google TV's ambient now-playing card to surface.
+ * Creates the media playback notification channel. Shared with
+ * PlaybackService's foreground notification (id "default_channel_id").
+ * IMPORTANCE_DEFAULT keeps the notification visible in the system tray
+ * without making noise.
  */
 class RroApp : Application() {
     override fun onCreate() {

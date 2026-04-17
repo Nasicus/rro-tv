@@ -42,18 +42,18 @@
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
-                <!--
-                  Google TV's "Backdrop" ambient overlay filters the now-
-                  playing card to apps that advertise themselves as a
-                  MediaBrowserService, even if they never expose a real
-                  browse tree. Media3's MediaSessionService extends
-                  MediaBrowserServiceCompat internally, so announcing this
-                  action is enough — no extra code needed.
-                -->
                 <action android:name="android.media.browse.MediaBrowserService" />
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </service>
+
+        <receiver
+            android:name="androidx.media.session.MediaButtonReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

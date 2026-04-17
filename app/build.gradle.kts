@@ -104,7 +104,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.media3:media3-exoplayer:$media3")
-    implementation("androidx.media3:media3-session:$media3")
-
-    implementation("com.google.guava:guava:33.3.1-android")
+    // Legacy androidx.media compat stack. Chromecast with Google TV's ambient
+    // now-playing card reliably picks up MediaSessionCompat sessions but often
+    // misses Media3's MediaLibrarySession via its compat bridge.
+    implementation("androidx.media:media:1.7.0")
 }

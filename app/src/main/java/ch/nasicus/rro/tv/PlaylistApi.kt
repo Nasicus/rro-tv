@@ -84,4 +84,18 @@ data class NowPlaying(
         val dur = durationMs ?: return null
         return (start + dur - now).coerceAtLeast(0)
     }
+
+    /**
+     * The API keeps returning the last song's metadata while news / talk /
+     * ads are on the air. Treat it as stale once we're past the expected
+     * end by more than 10% of the duration (with a 10s floor for very short
+     * tracks) — at that point we'd rather show just the channel name than
+     * lie about a song that finished minutes ago.
+     */
+    fun isStale(now: Long = System.currentTimeMillis()): Boolean {
+        val start = startTimeMs ?: return false
+        val dur = durationMs ?: return false
+        val tolerance = (dur / 10).coerceAtLeast(10_000L)
+        return now > start + dur + tolerance
+    }
 }

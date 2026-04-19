@@ -319,9 +319,11 @@ private class NowPlayingPoller(
         while (scope.isActive) {
             val nowPlaying = withContext(Dispatchers.IO) { api.fetchPlayingNow(channel.playlistApiId) }
             if (currentChannel() != channel) return
-            Log.d(POLL_TAG, "${channel.id}: ${nowPlaying?.artist} – ${nowPlaying?.title}")
-            onNowPlaying(channel, nowPlaying)
-            delay(nextPollDelayMs(nowPlaying))
+            val fresh = nowPlaying?.takeUnless { it.isStale() }
+            val staleSuffix = if (nowPlaying != null && fresh == null) " (stale, ignored)" else ""
+            Log.d(POLL_TAG, "${channel.id}: ${fresh?.artist} – ${fresh?.title}$staleSuffix")
+            onNowPlaying(channel, fresh)
+            delay(nextPollDelayMs(fresh))
         }
     }
 

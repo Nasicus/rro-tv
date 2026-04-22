@@ -120,9 +120,6 @@ private fun NowPlayingHeader(state: PlayerUiState) {
                     Text(artist, color = OnSurfaceMuted, fontSize = 20.sp)
                 }
             }
-            state.isPlaying -> {
-                Text(stringResource(R.string.now_playing), color = OnSurfaceMuted, fontSize = 22.sp)
-            }
         }
     }
 }

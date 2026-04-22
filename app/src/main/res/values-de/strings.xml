@@ -4,7 +4,6 @@
     <string name="play">Abspielen</string>
     <string name="pause">Pause</string>
     <string name="select_channel">Sender wählen</string>
-    <string name="now_playing">Es spielt</string>
     <string name="idle">Bereit</string>
     <string name="ch_rro">RRO</string>
     <string name="ch_rro_long">Radio Rottu Oberwallis</string>

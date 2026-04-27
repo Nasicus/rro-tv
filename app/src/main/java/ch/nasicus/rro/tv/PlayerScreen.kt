@@ -113,12 +113,15 @@ private fun NowPlayingHeader(state: PlayerUiState) {
             state.isBuffering -> {
                 Text("…", color = OnSurfaceMuted, fontSize = 22.sp)
             }
-            song.isNotBlank() -> {
-                Text(song, color = OnSurface, fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
-                if (artist.isNotBlank()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(artist, color = OnSurfaceMuted, fontSize = 20.sp)
-                }
+            else -> {
+                Text(
+                    song.ifBlank { " " },
+                    color = OnSurface,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(artist.ifBlank { " " }, color = OnSurfaceMuted, fontSize = 20.sp)
             }
         }
     }

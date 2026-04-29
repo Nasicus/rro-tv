@@ -46,6 +46,9 @@ class PlaybackService : MediaBrowserServiceCompat() {
     private var currentChannel: Channel? = null
     private var poller: NowPlayingPoller? = null
     private var inForeground = false
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var retryJob: Job? = null
+    private var nextRetryDelayMs = INITIAL_RETRY_MS
 
     override fun onCreate() {
         super.onCreate()
@@ -128,6 +131,7 @@ class PlaybackService : MediaBrowserServiceCompat() {
     override fun onDestroy() {
         poller?.release()
         poller = null
+        serviceScope.cancel()
         session.isActive = false
         session.release()
         player.release()
@@ -153,6 +157,7 @@ class PlaybackService : MediaBrowserServiceCompat() {
         }
 
         override fun onStop() {
+            cancelRetry()
             player.stop()
             player.clearMediaItems()
             currentChannel = null
@@ -172,6 +177,7 @@ class PlaybackService : MediaBrowserServiceCompat() {
 
     private fun playChannel(ch: Channel) {
         currentChannel = ch
+        cancelRetry()
         // Promote to a started service so we survive the activity unbinding
         // (pressing Home). MediaBrowserServiceCompat is bind-only by default.
         ContextCompat.startForegroundService(this, Intent(this, PlaybackService::class.java))
@@ -180,6 +186,32 @@ class PlaybackService : MediaBrowserServiceCompat() {
         player.prepare()
         player.play()
         poller?.onChannelChanged(ch)
+    }
+
+    /**
+     * ExoPlayer goes IDLE on any PlaybackException (network drop, stream
+     * server hiccup, DNS blip) and won't recover on its own. Re-prepare with
+     * exponential backoff capped at 10s, forever — for a passive ambient
+     * radio we'd rather keep trying than sit silent until the user notices.
+     * Backoff resets once playback actually resumes.
+     */
+    private fun scheduleRetry() {
+        retryJob?.cancel()
+        val delayMs = nextRetryDelayMs
+        nextRetryDelayMs = (nextRetryDelayMs * 2).coerceAtMost(MAX_RETRY_MS)
+        Log.d(TAG, "scheduling playback retry in ${delayMs}ms")
+        retryJob = serviceScope.launch {
+            delay(delayMs)
+            if (currentChannel == null) return@launch
+            player.prepare()
+            player.play()
+        }
+    }
+
+    private fun cancelRetry() {
+        retryJob?.cancel()
+        retryJob = null
+        nextRetryDelayMs = INITIAL_RETRY_MS
     }
 
     private fun setNowPlayingMetadata(ch: Channel, song: NowPlaying?) {
@@ -199,11 +231,15 @@ class PlaybackService : MediaBrowserServiceCompat() {
     }
 
     private inner class PlayerBridge : Player.Listener {
-        override fun onIsPlayingChanged(isPlaying: Boolean) = refresh()
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) cancelRetry()
+            refresh()
+        }
         override fun onPlaybackStateChanged(state: Int) = refresh()
         override fun onPlayerError(error: PlaybackException) {
             Log.e(TAG, "player error", error)
             refresh()
+            if (currentChannel != null) scheduleRetry()
         }
 
         private fun refresh() {
@@ -290,6 +326,8 @@ class PlaybackService : MediaBrowserServiceCompat() {
         private const val NOTIFICATION_ID = 1
         private const val MEDIA_CHANNEL_ID = "default_channel_id"
         private const val TAG = "RroPlayback"
+        private const val INITIAL_RETRY_MS = 500L
+        private const val MAX_RETRY_MS = 10_000L
     }
 }
 

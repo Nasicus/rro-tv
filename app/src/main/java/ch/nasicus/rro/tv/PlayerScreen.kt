@@ -194,9 +194,11 @@ private fun ChannelCard(
                 },
                 modifier = Modifier.size(28.dp),
             )
-            if (isBuffering) {
-                Text("…", color = OnSurfaceMuted, fontSize = 14.sp)
-            }
+            Text(
+                if (isBuffering) "…" else " ",
+                color = OnSurfaceMuted,
+                fontSize = 14.sp,
+            )
         }
     }
 }

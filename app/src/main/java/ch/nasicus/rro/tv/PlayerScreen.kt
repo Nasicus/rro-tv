@@ -76,7 +76,7 @@ fun PlayerScreen(
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(48.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 NowPlayingHeader(state)
                 ChannelRow(state, onToggle, focusRequester, currentIndex)
@@ -134,25 +134,17 @@ private fun ChannelRow(
     focusRequester: FocusRequester,
     focusedIndex: Int,
 ) {
-    Column {
-        Text(
-            text = stringResource(R.string.select_channel),
-            color = OnSurfaceMuted,
-            fontSize = 14.sp,
-        )
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            CHANNELS.forEachIndexed { i, ch ->
-                val isCurrent = ch.id == state.currentChannelId
-                ChannelCard(
-                    channel = ch,
-                    isCurrent = isCurrent,
-                    isPlaying = isCurrent && state.isPlaying,
-                    isBuffering = isCurrent && state.isBuffering,
-                    onClick = { onToggle(ch) },
-                    modifier = if (i == focusedIndex) Modifier.focusRequester(focusRequester) else Modifier,
-                )
-            }
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        CHANNELS.forEachIndexed { i, ch ->
+            val isCurrent = ch.id == state.currentChannelId
+            ChannelCard(
+                channel = ch,
+                isCurrent = isCurrent,
+                isPlaying = isCurrent && state.isPlaying,
+                isBuffering = isCurrent && state.isBuffering,
+                onClick = { onToggle(ch) },
+                modifier = if (i == focusedIndex) Modifier.focusRequester(focusRequester) else Modifier,
+            )
         }
     }
 }
